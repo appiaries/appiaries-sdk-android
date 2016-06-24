@@ -1,0 +1,197 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:1.3.0'  //ref) http://qiita.com/usamao/items/957efb9d602bac2cd0a5
+        //classpath 'org.robolectric:robolectric-gradle-plugin:1.0.1'
+        //classpath 'com.github.jcandksolutions.gradle:android-unit-test:2.1.1' //ref) http://qiita.com/Nkzn/items/d5f30bfe31bdf329860b
+
+        //ref) https://github.com/Abnaxos/pegdown-doclet/tree/master/integrations/gradle-plugin
+        //ref) https://github.com/Abnaxos/pegdown-doclet
+        //classpath 'ch.raffael.pegdown-doclet:pegdown-doclet:1.1.1'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    useLibrary 'org.apache.http.legacy'
+
+    compileSdkVersion 23
+    buildToolsVersion "23.0.1"
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 23
+        versionCode 1
+        versionName "2.0.10"
+        buildConfigField "String", "AB_API_VERSION", '"v1"'
+        //buildConfigField "String", "AB_SERVER_URL", '"https://api-datastore.appiaries.com"'
+
+        //ref) http://stackoverflow.com/questions/15209831/unable-to-execute-dex-method-id-not-in-0-0xffff-65536
+        multiDexEnabled true
+
+        //testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        //testInstrumentationRunner "com.google.android.apps.common.testing.testrunner.GoogleInstrumentationTestRunner"
+        //testInstrumentationRunner "android.support.multidex.MultiDexTestRunner"
+        testInstrumentationRunner "com.android.test.runner.MultiDexTestRunner"
+
+        testApplicationId 'com.appiaries.baas.sdk.tests'
+    }
+    buildTypes {
+        debug {
+            debuggable true
+            /*testCoverageEnabled true*/ /* これを有効にしてビルドした debug版 jar を組み込むと
+                                            java.lang.NoClassDefFoundError: Failed resolution of: Lorg/jacoco/agent/rt/internal_932a715/Offline;
+                                            が発生する (release版の方はちゃんと動く)。回避方法が不明なので一時的にコメントアウトしておく。 */
+            //versionNameSuffix '-dev'
+        }
+        release {
+            //minifyEnabled true
+            ////shrinkResources true
+            //proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    //dexOptions {
+    //    preDexLibraries = false
+    //}
+
+    publishNonDefault true
+    productFlavors {
+        production {
+            buildConfigField "String", "AB_SERVER_URL", '"https://api-datastore.appiaries.com"'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+    packagingOptions {
+        exclude 'LICENSE'
+        exclude 'LICENSE.txt'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/ASL2.0'
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.android.support:appcompat-v7:23.0.0'
+    compile 'com.google.android.gms:play-services-gcm:7.8.0'
+
+    // for Android Instrumentation Testing
+    androidTestCompile 'com.android.support:multidex-instrumentation:1.0.1'
+    androidTestCompile 'com.android.support.test:testing-support-lib:0.1'
+    androidTestCompile 'org.hamcrest:hamcrest-library:1.3'
+    androidTestCompile 'org.mockito:mockito-core:1.9.5'
+
+    // 3rd-Party Libraries (Core)
+    compile 'org.apache.httpcomponents:httpclient-android:4.3.5.1'
+    compile ('org.apache.httpcomponents:httpmime:4.3.4') {
+        exclude module:'org.apache.httpcomponents:httpcore'
+        exclude module:'org.apache.httpcomponents:httpclient'
+    }
+    compile 'oauth.signpost:signpost-core:1.2.1.2'
+    compile 'org.codehaus.jackson:jackson-core-asl:1.8.3'
+    compile 'org.codehaus.jackson:jackson-mapper-asl:1.8.3'
+
+    // 3rd-Party Libraries (SDK)
+    compile 'com.facebook.android:facebook-android-sdk:3.20.0'
+    compile 'org.twitter4j:twitter4j-core:4.0.2'
+}
+
+//@see http://www.gradle.org/docs/current/javadoc/org/gradle/external/javadoc/MinimalJavadocOptions.html
+android.libraryVariants.all { variant ->
+    def name = variant.name.capitalize()
+    task "generate${name}Javadoc"(type: Javadoc) {
+        title "Appiaries SDK Reference"
+        description "Appiaries SDK Reference"
+        source = variant.javaCompile.source
+        def androidJar = "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar"
+
+        classpath = files(variant.javaCompile.classpath.files, androidJar)
+        options {
+            locale DEFAULT_LOCALE
+            encoding DEFAULT_ENCODING
+            charSet DEFAULT_ENCODING
+            docEncoding DEFAULT_ENCODING
+            links "http://docs.oracle.com/javase/7/docs/api/"
+            linksOffline "http://d.android.com/reference", "${android.sdkDirectory}/docs/reference"
+            splitIndex true
+            author true
+            version true
+            noSince false
+            showFromPublic()
+            //noDeprecated true
+            //noDeprecatedList true
+            stylesheetFile new File("resources/templates/javadoc/stylesheet.css")
+        }
+
+        exclude '**/BuildConfig.java'
+        exclude '**/R.java'
+    }
+
+
+    def jarVersionName = android.defaultConfig.versionName.replaceAll("\\.", "_")
+
+    //XXX: 実行時の buildType と flavor を取得する
+    def variantName = variant.name.toLowerCase();
+    def buildType = ""
+    if (variantName.contains("debug")) {
+        buildType = "debug"
+    } else if (variantName.contains("release")) {
+        buildType = "release"
+    }
+    def flavor = variantName.replace(buildType, '')
+
+    task "clear${name}Jar"(type: Delete) {
+        delete 'build/libs/' + JAR_ARTIFACT_ID + '-' + jarVersionName + '.jar'
+    }
+
+    task "make${name}Jar"(type: Copy, dependsOn: ["clear${name}Jar", build]) {
+        from("build/intermediates/bundles/${flavor}/${buildType}/")
+        into('build/libs/')
+        include('classes.jar')
+        rename('classes.jar', JAR_ARTIFACT_ID + '-' + jarVersionName + '.jar')
+    }
+
+    task "clear${name}Zip"(type: Delete) {
+        delete 'build/dist/' + JAR_ARTIFACT_ID + '-' + jarVersionName + '-' + variant.name + '.zip'
+    }
+
+    task "make${name}Zip"(type: Zip, dependsOn: ["clear${name}Zip", "make${name}Jar"]) {
+        archiveName = JAR_ARTIFACT_ID + '-' + jarVersionName + '-' + flavor + '-' + buildType + '.zip'
+        from('build/libs/' + JAR_ARTIFACT_ID + '-' + jarVersionName + '.jar')
+    }
+
+}
